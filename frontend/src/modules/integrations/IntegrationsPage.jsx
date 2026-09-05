@@ -1,0 +1,50 @@
+import { useEffect, useState } from 'react';
+import client from '../../shared/api/client';
+import { useAuth } from '../../shared/context/AuthContext';
+import Button from '../../shared/components/Button';
+
+const providerLabels = { jira: 'Jira', github: 'GitHub', google_drive: 'Google Drive', trello: 'Trello' };
+const providerIcons = { jira: '🔷', github: '🐙', google_drive: '📁', trello: '📋' };
+
+export default function IntegrationsPage() {
+  const { user } = useAuth();
+  const [list, setList] = useState([]);
+  const isPrivileged = ['Owner', 'Admin'].includes(user?.role);
+
+  const load = async () => {
+    const res = await client.get('/integrations');
+    setList(res.data.data);
+  };
+  useEffect(() => { load(); }, []);
+
+  const toggle = async (provider, isConnected) => {
+    await client.post(`/integrations/${provider}/${isConnected ? 'disconnect' : 'connect'}`);
+    load();
+  };
+
+  return (
+    <div style={{ flex: 1, padding: 32, overflowY: 'auto' }}>
+      <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Integrations</h2>
+      <p style={{ fontSize: 13, color: 'var(--color-text-muted)', marginBottom: 24 }}>
+        Connect external tools so their activity shows up in Nook. Real OAuth flows need each provider's API credentials wired in later — this manages connection status and inbound webhooks.
+      </p>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {list.map((i) => (
+          <div key={i.provider} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: 16, border: '1px solid var(--color-border)', borderRadius: 10, background: 'var(--color-surface)' }}>
+            <span style={{ fontSize: 24 }}>{providerIcons[i.provider]}</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 600, fontSize: 14 }}>{providerLabels[i.provider]}</div>
+              <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>{i.isConnected ? `Connected ${i.connectedAt ? new Date(i.connectedAt).toLocaleDateString() : ''}` : 'Not connected'}</div>
+            </div>
+            {isPrivileged && (
+              <Button variant={i.isConnected ? 'danger' : 'primary'} onClick={() => toggle(i.provider, i.isConnected)} style={{ fontSize: 12, padding: '6px 14px' }}>
+                {i.isConnected ? 'Disconnect' : 'Connect'}
+              </Button>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
