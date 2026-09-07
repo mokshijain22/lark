@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getAll, connect, disconnect, receiveWebhook, githubConnect, githubCallback, googleConnect, googleCallback } = require('./integration.controller');
+const { getAll, connect, disconnect, receiveWebhook, githubConnect, githubCallback, googleConnect, googleCallback, getGoogleMessages } = require('./integration.controller');
 const { protect } = require('../../shared/middleware/auth.middleware');
 const { allowRoles } = require('../../shared/middleware/role.middleware');
 
@@ -14,6 +14,7 @@ router.get('/google/callback', googleCallback); // Google redirects here after u
 
 router.use(protect);
 router.get('/', getAll);
+router.get('/google/messages', getGoogleMessages);
 router.post('/:provider/connect', allowRoles('Owner', 'Admin'), connect);
 router.post('/:provider/disconnect', allowRoles('Owner', 'Admin'), disconnect);
 

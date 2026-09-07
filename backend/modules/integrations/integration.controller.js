@@ -185,6 +185,73 @@ const googleCallback = async (req, res) => {
   }
 };
 
+// GET /api/integrations/google/messages  (fetch last 10 Gmail messages for the connected account)
+const getGoogleMessages = async (req, res) => {
+  try {
+    const integration = await Integration.findOne({ provider: 'google', isConnected: true }).select('+accessToken +refreshToken');
+    if (!integration) return res.status(404).json({ success: false, message: 'Gmail not connected' });
+
+    const fetchGmail = async (accessToken) => {
+      const listRes = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=10&labelIds=INBOX', {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      return listRes;
+    };
+
+    let accessToken = integration.accessToken;
+    let listRes = await fetchGmail(accessToken);
+
+    // Access token expired -> use refresh token to get a new one, then retry once.
+    if (listRes.status === 401 && integration.refreshToken) {
+      const refreshRes = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          client_id: process.env.GOOGLE_CLIENT_ID,
+          client_secret: process.env.GOOGLE_CLIENT_SECRET,
+          refresh_token: integration.refreshToken,
+          grant_type: 'refresh_token',
+        }),
+      });
+      const refreshData = await refreshRes.json();
+      if (!refreshData.access_token) throw new Error('Gmail session expired, please reconnect');
+
+      accessToken = refreshData.access_token;
+      integration.accessToken = accessToken;
+      await integration.save();
+
+      listRes = await fetchGmail(accessToken);
+    }
+
+    const listData = await listRes.json();
+    if (!listData.messages) return res.status(200).json({ success: true, data: [] });
+
+    // Gmail's list endpoint only returns IDs, so fetch metadata for each message.
+    const messages = await Promise.all(
+      listData.messages.map(async (m) => {
+        const msgRes = await fetch(
+          `https://gmail.googleapis.com/gmail/v1/users/me/messages/${m.id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`,
+          { headers: { Authorization: `Bearer ${accessToken}` } }
+        );
+        const msgData = await msgRes.json();
+        const headers = Object.fromEntries((msgData.payload?.headers || []).map((h) => [h.name, h.value]));
+        return {
+          id: msgData.id,
+          from: headers.From || 'Unknown sender',
+          subject: headers.Subject || '(no subject)',
+          snippet: msgData.snippet || '',
+          date: headers.Date || null,
+          isUnread: (msgData.labelIds || []).includes('UNREAD'),
+        };
+      })
+    );
+
+    return res.status(200).json({ success: true, data: messages });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 // POST /api/integrations/:provider/webhook  (generic inbound webhook -> creates a Notification)
 const { notifyMany } = require('../../shared/services/notify.service');
 const OrgMember = require('../../shared/models/OrgMember');
@@ -208,4 +275,4 @@ const receiveWebhook = async (req, res) => {
   }
 };
 
-module.exports = { getAll, connect, disconnect, receiveWebhook, githubConnect, githubCallback, googleConnect, googleCallback };
+module.exports = { getAll, connect, disconnect, receiveWebhook, githubConnect, githubCallback, googleConnect, googleCallback, getGoogleMessages };
