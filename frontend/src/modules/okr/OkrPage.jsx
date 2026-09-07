@@ -6,6 +6,7 @@ import Modal from '../../shared/components/Modal';
 import Field, { inputStyle } from '../../shared/components/Field';
 import EmptyState from '../../shared/components/EmptyState';
 import Avatar from '../../shared/components/Avatar';
+import { Target } from 'lucide-react';
 
 export default function OkrPage() {
   const [list, setList] = useState([]);
@@ -83,7 +84,7 @@ export default function OkrPage() {
             ))}
           </div>
         ) : (
-          <EmptyState icon="🎯" title="Select an OKR" subtitle="Choose an objective to view or update progress" />
+          <EmptyState icon={Target} title="Select an OKR" subtitle="Choose an objective to view or update progress" />
         )
       }
     >

@@ -8,6 +8,7 @@ import Modal from '../../shared/components/Modal';
 import Field, { inputStyle } from '../../shared/components/Field';
 import EmptyState from '../../shared/components/EmptyState';
 import Avatar from '../../shared/components/Avatar';
+import { CheckSquare } from 'lucide-react';
 
 export default function ApprovalsPage() {
   const { user } = useAuth();
@@ -133,6 +134,12 @@ export default function ApprovalsPage() {
               <p style={{ marginTop: 16, lineHeight: 1.6, color: 'var(--color-text-muted)' }}>{selected.description}</p>
             )}
 
+            {selected.leaveStartDate && selected.leaveEndDate && (
+              <div style={{ marginTop: 16, fontSize: 13, color: 'var(--color-text)' }}>
+                <strong>Leave dates:</strong> {new Date(selected.leaveStartDate).toLocaleDateString()} – {new Date(selected.leaveEndDate).toLocaleDateString()}
+              </div>
+            )}
+
             {selected.attachment && (
               <a href={selected.attachment} target="_blank" rel="noreferrer" style={{ display: 'inline-block', marginTop: 12, color: 'var(--color-primary)', fontSize: 13, fontWeight: 600 }}>
                 View attachment ↗
@@ -151,7 +158,7 @@ export default function ApprovalsPage() {
             )}
           </div>
         ) : (
-          <EmptyState icon="✓" title="Select a request" subtitle="Choose a request from the list to view details" />
+          <EmptyState icon={CheckSquare} title="Select a request" subtitle="Choose a request from the list to view details" />
         )
       }
     >

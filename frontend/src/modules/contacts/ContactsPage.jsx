@@ -6,6 +6,7 @@ import Avatar from '../../shared/components/Avatar';
 import Badge from '../../shared/components/Badge';
 import EmptyState from '../../shared/components/EmptyState';
 import { inputStyle } from '../../shared/components/Field';
+import { Users } from 'lucide-react';
 
 export default function ContactsPage() {
   const { user, updateUser } = useAuth();
@@ -125,7 +126,7 @@ export default function ContactsPage() {
             )}
           </div>
         ) : (
-          <EmptyState icon="👥" title="Select a contact" subtitle="Choose someone from the directory to view details" />
+          <EmptyState icon={Users} title="Select a contact" subtitle="Choose someone from the directory to view details" />
         )
       }
     />

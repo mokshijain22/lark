@@ -71,8 +71,16 @@ app.use((err, req, res, next) => {
   res.status(500).json({ success: false, message: 'Server error' });
 });
 
-initSocket(httpServer); // real-time notifications - see shared/config/socket.js
-startCronJobs(); // Anycross time-based automations - see shared/services/cron.service.js
+// On Vercel (serverless), there's no persistent process: no long-lived socket
+// connections and no in-memory setInterval survives between invocations. So we
+// only start Socket.io + the cron loop when running as a normal long-lived
+// Node process (local dev, or a host like Render/Railway).
+if (!process.env.VERCEL) {
+  initSocket(httpServer);
+  startCronJobs();
 
-const PORT = process.env.PORT || 5000;
-httpServer.listen(PORT, () => console.log(`Nook backend (HTTP + Socket.io) listening on port ${PORT}`));
+  const PORT = process.env.PORT || 5000;
+  httpServer.listen(PORT, () => console.log(`Nook backend (HTTP + Socket.io) listening on port ${PORT}`));
+}
+
+module.exports = app;

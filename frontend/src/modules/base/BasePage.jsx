@@ -6,6 +6,7 @@ import Modal from '../../shared/components/Modal';
 import Field, { inputStyle } from '../../shared/components/Field';
 import EmptyState from '../../shared/components/EmptyState';
 import ShareButton from '../../shared/components/ShareButton';
+import { Database } from 'lucide-react';
 
 export default function BasePage() {
   const [tables, setTables] = useState([]);
@@ -106,7 +107,7 @@ export default function BasePage() {
             </p>
           </div>
         ) : (
-          <EmptyState icon="🗂️" title="Select a table" subtitle="Choose a table to view and edit its data" />
+          <EmptyState icon={Database} title="Select a table" subtitle="Choose a table to view and edit its data" />
         )
       }
     >

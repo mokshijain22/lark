@@ -8,6 +8,7 @@ import Field, { inputStyle } from '../../shared/components/Field';
 import EmptyState from '../../shared/components/EmptyState';
 import Avatar from '../../shared/components/Avatar';
 import ShareButton from '../../shared/components/ShareButton';
+import { ListTodo } from 'lucide-react';
 
 const statuses = ['To-do', 'In Progress', 'Done'];
 
@@ -145,7 +146,7 @@ export default function TasksPage() {
             </div>
           </div>
         ) : (
-          <EmptyState icon="☑" title="Select a task" subtitle="Choose a task from the list to view details" />
+          <EmptyState icon={ListTodo} title="Select a task" subtitle="Choose a task from the list to view details" />
         )
       }
     >

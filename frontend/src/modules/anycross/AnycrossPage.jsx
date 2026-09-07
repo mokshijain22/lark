@@ -4,6 +4,7 @@ import Button from '../../shared/components/Button';
 import Modal from '../../shared/components/Modal';
 import Field, { inputStyle } from '../../shared/components/Field';
 import EmptyState from '../../shared/components/EmptyState';
+import { Zap } from 'lucide-react';
 
 export default function AnycrossPage() {
   const [rules, setRules] = useState([]);
@@ -38,7 +39,7 @@ export default function AnycrossPage() {
         <Button onClick={() => setShowForm(true)}>+ New Rule</Button>
       </div>
 
-      {rules.length === 0 && <EmptyState icon="⚡" title="No automations yet" subtitle='Create rules like "Every day at 9am, send a reminder"' />}
+      {rules.length === 0 && <EmptyState icon={Zap} title="No automations yet" subtitle='Create rules like "Every day at 9am, send a reminder"' />}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {rules.map((r) => (

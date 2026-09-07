@@ -42,6 +42,14 @@ export default function WorkplacePage() {
         )}
       </div>
 
+      {page.blocks.length === 0 && !editing && (
+        <div style={{ padding: 40, textAlign: 'center', color: 'var(--color-text-muted)', border: '1px dashed var(--color-border)', borderRadius: 10 }}>
+          {isPrivileged
+            ? 'This page is empty. Click "Edit page" above to add announcements, links, or text blocks.'
+            : 'Nothing has been posted to the Company Portal yet.'}
+        </div>
+      )}
+
       {page.blocks.map((b, i) => (
         <div key={i} style={{ marginBottom: 16, padding: 16, border: '1px solid var(--color-border)', borderRadius: 10, background: 'var(--color-surface)' }}>
           {editing ? (

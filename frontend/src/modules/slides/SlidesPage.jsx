@@ -6,6 +6,7 @@ import Modal from '../../shared/components/Modal';
 import Field, { inputStyle } from '../../shared/components/Field';
 import EmptyState from '../../shared/components/EmptyState';
 import ShareButton from '../../shared/components/ShareButton';
+import { Presentation } from 'lucide-react';
 
 const CANVAS_W = 720;
 const CANVAS_H = 405; // 16:9
@@ -72,6 +73,35 @@ function CanvasElement({ el, selected, onSelect, onChange, onDelete }) {
             fontSize: el.fontSize || 18, color: el.color || '#111', fontWeight: el.bold ? 700 : 400, padding: 4,
           }}
         />
+      )}
+      {el.type === 'image' && (
+        el.src ? (
+          <img src={el.src} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'contain', pointerEvents: 'none' }} />
+        ) : (
+          <div style={{ fontSize: 12, color: '#999' }}>No image URL</div>
+        )
+      )}
+      {el.type === 'table' && (
+        <table onMouseDown={(e) => e.stopPropagation()} style={{ width: '100%', height: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+          <tbody>
+            {(el.rows || []).map((row, ri) => (
+              <tr key={ri}>
+                {row.map((cell, ci) => (
+                  <td key={ci} style={{ border: '1px solid #999', padding: 2 }}>
+                    <input
+                      value={cell}
+                      onChange={(ev) => {
+                        const rows = el.rows.map((r, i2) => (i2 === ri ? r.map((c, j2) => (j2 === ci ? ev.target.value : c)) : r));
+                        onChange({ ...el, rows });
+                      }}
+                      style={{ width: '100%', border: 'none', background: 'transparent', fontSize: 12, color: '#111' }}
+                    />
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
       {selected && (
         <>
@@ -152,9 +182,18 @@ export default function SlidesPage() {
   const addElement = (type) => {
     const slide = selected.slides[activeSlide];
     const base = { id: `el_${Date.now()}`, x: 60, y: 60, w: 240, h: type === 'text' ? 60 : 120 };
-    const el = type === 'text'
-      ? { ...base, type: 'text', content: 'New text', fontSize: 18 }
-      : { ...base, type: 'shape', shapeType: 'rectangle', shapeColor: '#155EEF' };
+    let el;
+    if (type === 'text') {
+      el = { ...base, type: 'text', content: 'New text', fontSize: 18 };
+    } else if (type === 'shape') {
+      el = { ...base, type: 'shape', shapeType: 'rectangle', shapeColor: '#155EEF' };
+    } else if (type === 'image') {
+      const src = window.prompt('Image URL:');
+      if (!src) return;
+      el = { ...base, type: 'image', src, w: 240, h: 160 };
+    } else if (type === 'table') {
+      el = { ...base, type: 'table', w: 280, h: 120, rows: [['', ''], ['', '']] };
+    }
     const elements = [...(slide.elements || []), el];
     updateElements(elements);
     setSelectedElId(el.id);
@@ -185,6 +224,22 @@ export default function SlidesPage() {
               fontSize: el.fontSize, color: el.color || '#111', fontWeight: el.bold ? 700 : 400, whiteSpace: 'pre-wrap',
             }}>
               {el.type === 'text' && el.content}
+              {el.type === 'image' && el.src && (
+                <img src={el.src} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+              )}
+              {el.type === 'table' && (
+                <table style={{ width: '100%', height: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                  <tbody>
+                    {(el.rows || []).map((row, ri) => (
+                      <tr key={ri}>
+                        {row.map((cell, ci) => (
+                          <td key={ci} style={{ border: '1px solid #999', padding: 4 }}>{cell}</td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
           ))}
         </div>
@@ -246,6 +301,8 @@ export default function SlidesPage() {
                 <div style={{ display: 'flex', gap: 8 }}>
                   <Button variant="secondary" onClick={() => addElement('text')} style={{ fontSize: 12, padding: '6px 12px' }}>+ Text</Button>
                   <Button variant="secondary" onClick={() => addElement('shape')} style={{ fontSize: 12, padding: '6px 12px' }}>+ Shape</Button>
+                  <Button variant="secondary" onClick={() => addElement('image')} style={{ fontSize: 12, padding: '6px 12px' }}>+ Image</Button>
+                  <Button variant="secondary" onClick={() => addElement('table')} style={{ fontSize: 12, padding: '6px 12px' }}>+ Table</Button>
                   <Button onClick={() => setPresenting(true)} style={{ fontSize: 12, padding: '6px 12px' }}>▶ Present</Button>
                   <ShareButton itemType="presentation" itemId={selected._id} />
                 </div>
@@ -272,7 +329,7 @@ export default function SlidesPage() {
             </div>
           </div>
         ) : (
-          <EmptyState icon="🖥️" title="Select a presentation" subtitle="Choose a presentation to edit" />
+          <EmptyState icon={Presentation} title="Select a presentation" subtitle="Choose a presentation to edit" />
         )
       }
     >

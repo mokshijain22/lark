@@ -7,6 +7,7 @@ import Field, { inputStyle } from '../../shared/components/Field';
 import EmptyState from '../../shared/components/EmptyState';
 import Avatar from '../../shared/components/Avatar';
 import ShareButton from '../../shared/components/ShareButton';
+import { FileText } from 'lucide-react';
 
 export default function DocsPage() {
   const [docs, setDocs] = useState([]);
@@ -15,6 +16,9 @@ export default function DocsPage() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ title: '', folder: '' });
   const [saveTimer, setSaveTimer] = useState(null);
+  const [showVersions, setShowVersions] = useState(false);
+  const [versions, setVersions] = useState([]);
+  const [reverting, setReverting] = useState(null);
 
   const load = async () => {
     const res = await client.get('/docs');
@@ -26,6 +30,24 @@ export default function DocsPage() {
     const res = await client.get(`/docs/${d._id}`);
     setSelected(res.data.data);
     setContent(res.data.data.content || '');
+  };
+
+  const openVersions = async () => {
+    const res = await client.get(`/docs/${selected._id}/versions`);
+    setVersions(res.data.data);
+    setShowVersions(true);
+  };
+
+  const revertToVersion = async (versionIndex) => {
+    setReverting(versionIndex);
+    try {
+      const res = await client.post(`/docs/${selected._id}/revert`, { versionIndex });
+      setSelected(res.data.data);
+      setContent(res.data.data.content || '');
+      setShowVersions(false);
+    } finally {
+      setReverting(null);
+    }
   };
 
   const submit = async (e) => {
@@ -65,7 +87,12 @@ export default function DocsPage() {
           <div style={{ padding: 32, maxWidth: 720 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
               <h2 style={{ fontSize: 22, fontWeight: 700 }}>{selected.title}</h2>
-              <ShareButton itemType="document" itemId={selected._id} />
+              <div style={{ display: 'flex', gap: 8 }}>
+                <Button variant="secondary" onClick={openVersions} style={{ fontSize: 12, padding: '6px 12px' }}>
+                  🕘 History
+                </Button>
+                <ShareButton itemType="document" itemId={selected._id} />
+              </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, fontSize: 12, color: 'var(--color-text-muted)' }}>
               <Avatar name={selected.author?.name} src={selected.author?.avatar} size={20} />
@@ -79,7 +106,7 @@ export default function DocsPage() {
             />
           </div>
         ) : (
-          <EmptyState icon="📄" title="Select a document" subtitle="Choose a document to view or edit" />
+          <EmptyState icon={FileText} title="Select a document" subtitle="Choose a document to view or edit" />
         )
       }
     >
@@ -90,6 +117,40 @@ export default function DocsPage() {
             <Field label="Folder (optional)"><input style={inputStyle} value={form.folder} onChange={(e) => setForm({ ...form, folder: e.target.value })} placeholder="e.g. Engineering/Specs" /></Field>
             <Button type="submit" style={{ width: '100%' }}>Create</Button>
           </form>
+        </Modal>
+      )}
+
+      {showVersions && (
+        <Modal title="Version history" onClose={() => setShowVersions(false)} width={480}>
+          {versions.length === 0 && (
+            <div style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>No earlier versions yet — edits get saved here as you keep editing.</div>
+          )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {[...versions].reverse().map((v, i) => {
+              const versionIndex = versions.length - 1 - i;
+              return (
+                <div key={versionIndex} style={{ border: '1px solid var(--color-border)', borderRadius: 8, padding: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                    <Avatar name={v.editedBy?.name} src={v.editedBy?.avatar} size={20} />
+                    <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
+                      {v.editedBy?.name || 'Unknown'} · {new Date(v.editedAt || v.createdAt).toLocaleString()}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 13, color: 'var(--color-text)', maxHeight: 80, overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: 8, whiteSpace: 'pre-wrap' }}>
+                    {(v.content || '').slice(0, 200) || '(empty)'}
+                  </div>
+                  <Button
+                    variant="secondary"
+                    onClick={() => revertToVersion(versionIndex)}
+                    disabled={reverting === versionIndex}
+                    style={{ fontSize: 12, padding: '5px 10px' }}
+                  >
+                    {reverting === versionIndex ? 'Reverting...' : 'Revert to this version'}
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
         </Modal>
       )}
     </PanelLayout>

@@ -3,8 +3,10 @@ import client from '../../shared/api/client';
 import { useAuth } from '../../shared/context/AuthContext';
 import Button from '../../shared/components/Button';
 
+import { Layers, GitBranch, HardDrive, Kanban } from 'lucide-react';
+
 const providerLabels = { jira: 'Jira', github: 'GitHub', google_drive: 'Google Drive', trello: 'Trello' };
-const providerIcons = { jira: '🔷', github: '🐙', google_drive: '📁', trello: '📋' };
+const providerIcons = { jira: Layers, github: GitBranch, google_drive: HardDrive, trello: Kanban };
 
 export default function IntegrationsPage() {
   const { user } = useAuth();
@@ -18,6 +20,11 @@ export default function IntegrationsPage() {
   useEffect(() => { load(); }, []);
 
   const toggle = async (provider, isConnected) => {
+    if (provider === 'github' && !isConnected) {
+      const token = localStorage.getItem('token'); // adjust key if you store the JWT elsewhere
+      window.location.href = `${client.defaults.baseURL}/integrations/github/connect?token=${token}`;
+      return;
+    }
     await client.post(`/integrations/${provider}/${isConnected ? 'disconnect' : 'connect'}`);
     load();
   };
@@ -32,7 +39,7 @@ export default function IntegrationsPage() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {list.map((i) => (
           <div key={i.provider} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: 16, border: '1px solid var(--color-border)', borderRadius: 10, background: 'var(--color-surface)' }}>
-            <span style={{ fontSize: 24 }}>{providerIcons[i.provider]}</span>
+            {(() => { const ProviderIcon = providerIcons[i.provider]; return <ProviderIcon size={22} strokeWidth={1.75} style={{ color: 'var(--color-text-muted)', flexShrink: 0 }} />; })()}
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 600, fontSize: 14 }}>{providerLabels[i.provider]}</div>
               <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>{i.isConnected ? `Connected ${i.connectedAt ? new Date(i.connectedAt).toLocaleDateString() : ''}` : 'Not connected'}</div>

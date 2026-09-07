@@ -18,6 +18,7 @@ import MagicSharePage from './modules/magicshare/MagicSharePage';
 import AnycrossPage from './modules/anycross/AnycrossPage';
 import WorkplacePage from './modules/workplace/WorkplacePage';
 import IntegrationsPage from './modules/integrations/IntegrationsPage';
+import TranslationPage from './modules/translation/TranslationPage';
 
 function Workspace() {
   return (
@@ -41,6 +42,7 @@ function Workspace() {
           <Route path="/share" element={<MagicSharePage />} />
           <Route path="/anycross" element={<AnycrossPage />} />
           <Route path="/integrations" element={<IntegrationsPage />} />
+          <Route path="/translation" element={<TranslationPage />} />
           <Route path="*" element={<Navigate to="/workplace" replace />} />
         </Routes>
       </div>

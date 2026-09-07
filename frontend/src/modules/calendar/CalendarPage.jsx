@@ -9,6 +9,7 @@ import EmptyState from '../../shared/components/EmptyState';
 import Avatar from '../../shared/components/Avatar';
 import Badge from '../../shared/components/Badge';
 import ShareButton from '../../shared/components/ShareButton';
+import { MapPin, Calendar as CalendarIcon } from 'lucide-react';
 
 const monthRange = (offset = 0) => {
   const now = new Date();
@@ -127,7 +128,7 @@ export default function CalendarPage() {
               {selected.recurrence?.type !== 'none' && ` · Repeats ${selected.recurrence.type}`}
             </div>
             {selected.meetingRoom && (
-              <div style={{ fontSize: 13, marginTop: 6, color: 'var(--color-text-muted)' }}>📍 {selected.meetingRoom}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, marginTop: 6, color: 'var(--color-text-muted)' }}><MapPin size={13} /> {selected.meetingRoom}</div>
             )}
             {selected.description && (
               <p style={{ marginTop: 16, lineHeight: 1.6, color: 'var(--color-text-muted)' }}>{selected.description}</p>
@@ -152,7 +153,7 @@ export default function CalendarPage() {
             )}
           </div>
         ) : (
-          <EmptyState icon="📅" title="Select an event" subtitle="Choose an event from the list to view details" />
+          <EmptyState icon={CalendarIcon} title="Select an event" subtitle="Choose an event from the list to view details" />
         )
       }
     >

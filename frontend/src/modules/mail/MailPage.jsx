@@ -6,6 +6,7 @@ import Modal from '../../shared/components/Modal';
 import Field, { inputStyle } from '../../shared/components/Field';
 import EmptyState from '../../shared/components/EmptyState';
 import Avatar from '../../shared/components/Avatar';
+import { Mail, Paperclip } from 'lucide-react';
 
 export default function MailPage() {
   const [tab, setTab] = useState('inbox');
@@ -80,13 +81,13 @@ export default function MailPage() {
             {selected.attachments?.length > 0 && (
               <div style={{ marginTop: 20 }}>
                 {selected.attachments.map((a, i) => (
-                  <a key={i} href={a.url} target="_blank" rel="noreferrer" style={{ display: 'block', color: 'var(--color-primary)', fontSize: 13, marginBottom: 4 }}>📎 {a.filename}</a>
+                  <a key={i} href={a.url} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--color-primary)', fontSize: 13, marginBottom: 4 }}><Paperclip size={13} /> {a.filename}</a>
                 ))}
               </div>
             )}
           </div>
         ) : (
-          <EmptyState icon="✉️" title="Select an email" subtitle="Choose a message to read" />
+          <EmptyState icon={Mail} title="Select an email" subtitle="Choose a message to read" />
         )
       }
     >

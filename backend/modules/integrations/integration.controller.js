@@ -1,3 +1,4 @@
+const jwt = require('jsonwebtoken');
 const Integration = require('./integration.model');
 
 const KNOWN_PROVIDERS = ['jira', 'github', 'google_drive', 'trello'];
@@ -47,6 +48,72 @@ const disconnect = async (req, res) => {
   }
 };
 
+// GET /api/integrations/github/connect?token=<jwt>  (redirect flow - browser nav can't send Authorization header)
+const githubConnect = async (req, res) => {
+  try {
+    const { token } = req.query;
+    if (!token) return res.status(401).send('Missing auth token');
+    jwt.verify(token, process.env.JWT_SECRET); // just validating it's a real logged-in user before redirecting
+
+    const state = jwt.sign({ token, provider: 'github' }, process.env.JWT_SECRET, { expiresIn: '10m' });
+    const params = new URLSearchParams({
+      client_id: process.env.GITHUB_CLIENT_ID,
+      redirect_uri: process.env.GITHUB_CALLBACK_URL,
+      scope: 'read:user repo',
+      state,
+    });
+    return res.redirect(`https://github.com/login/oauth/authorize?${params.toString()}`);
+  } catch (err) {
+    return res.status(401).send('Invalid or expired session, please log in again');
+  }
+};
+
+// GET /api/integrations/github/callback  (GitHub redirects here with ?code=&state=)
+const githubCallback = async (req, res) => {
+  const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+  try {
+    const { code, state } = req.query;
+    const decodedState = jwt.verify(state, process.env.JWT_SECRET);
+    const userPayload = jwt.verify(decodedState.token, process.env.JWT_SECRET);
+
+    const tokenRes = await fetch('https://github.com/login/oauth/access_token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({
+        client_id: process.env.GITHUB_CLIENT_ID,
+        client_secret: process.env.GITHUB_CLIENT_SECRET,
+        code,
+        redirect_uri: process.env.GITHUB_CALLBACK_URL,
+      }),
+    });
+    const tokenData = await tokenRes.json();
+    if (!tokenData.access_token) throw new Error(tokenData.error_description || 'No access token returned');
+
+    const userRes = await fetch('https://api.github.com/user', {
+      headers: { Authorization: `Bearer ${tokenData.access_token}`, 'User-Agent': 'Nook-App' },
+    });
+    const githubUser = await userRes.json();
+
+    await Integration.findOneAndUpdate(
+      { provider: 'github' },
+      {
+        provider: 'github',
+        isConnected: true,
+        connectedBy: userPayload.id,
+        connectedAt: new Date(),
+        accessToken: tokenData.access_token,
+        providerUserId: String(githubUser.id),
+        providerUsername: githubUser.login,
+      },
+      { upsert: true, new: true }
+    );
+
+    return res.redirect(`${clientUrl}/integrations?connected=github`);
+  } catch (err) {
+    return res.redirect(`${clientUrl}/integrations?error=${encodeURIComponent(err.message)}`);
+  }
+};
+
 // POST /api/integrations/:provider/webhook  (generic inbound webhook -> creates a Notification)
 const { notifyMany } = require('../../shared/services/notify.service');
 const OrgMember = require('../../shared/models/OrgMember');
@@ -70,4 +137,4 @@ const receiveWebhook = async (req, res) => {
   }
 };
 
-module.exports = { getAll, connect, disconnect, receiveWebhook };
+module.exports = { getAll, connect, disconnect, receiveWebhook, githubConnect, githubCallback };

@@ -3,6 +3,7 @@ import client from '../../shared/api/client';
 import Avatar from '../../shared/components/Avatar';
 import Badge from '../../shared/components/Badge';
 import EmptyState from '../../shared/components/EmptyState';
+import { Share2 } from 'lucide-react';
 
 export default function MagicSharePage() {
   const [shares, setShares] = useState([]);
@@ -14,7 +15,7 @@ export default function MagicSharePage() {
   return (
     <div style={{ flex: 1, padding: 32, overflowY: 'auto' }}>
       <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 20 }}>Shared with me</h2>
-      {shares.length === 0 && <EmptyState icon="🔗" title="Nothing shared yet" subtitle="Items shared with you from Docs, Sheets, Slides, Base, Calendar or Tasks will appear here" />}
+      {shares.length === 0 && <EmptyState icon={Share2} title="Nothing shared yet" subtitle="Items shared with you from Docs, Sheets, Slides, Base, Calendar or Tasks will appear here" />}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {shares.map((s) => (
           <div key={s._id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 14, border: '1px solid var(--color-border)', borderRadius: 10, background: 'var(--color-surface)' }}>

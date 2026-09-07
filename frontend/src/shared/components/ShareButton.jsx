@@ -3,6 +3,7 @@ import client from '../api/client';
 import Modal from './Modal';
 import Button from './Button';
 import Field, { inputStyle } from './Field';
+import { Share2 } from 'lucide-react';
 
 // Drop this into any module's detail view: <ShareButton itemType="task" itemId={task._id} />
 export default function ShareButton({ itemType, itemId }) {
@@ -31,8 +32,8 @@ export default function ShareButton({ itemType, itemId }) {
 
   return (
     <>
-      <Button variant="secondary" onClick={() => setOpen(true)} style={{ fontSize: 12, padding: '6px 12px' }}>
-        🔗 Share
+      <Button variant="secondary" onClick={() => setOpen(true)} style={{ fontSize: 12, padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <Share2 size={13} /> Share
       </Button>
 
       {open && (

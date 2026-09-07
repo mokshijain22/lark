@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { Bell } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
 
 const timeAgo = (date) => {
@@ -27,11 +28,12 @@ export default function NotificationBell() {
         onClick={() => setOpen((o) => !o)}
         title="Notifications"
         style={{
-          width: 40, height: 40, borderRadius: 'var(--radius)', border: '1px solid var(--color-border)',
-          background: 'var(--color-bg)', color: 'var(--color-text)', position: 'relative', fontSize: 17,
+          width: 34, height: 34, borderRadius: 8, border: '1px solid var(--color-border)',
+          background: 'var(--color-bg)', color: 'var(--color-text-muted)', position: 'relative',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}
       >
-        🔔
+        <Bell size={16} />
         {unreadCount > 0 && (
           <span style={{
             position: 'absolute', top: -4, right: -4, background: 'var(--color-danger)', color: '#fff',
@@ -45,7 +47,7 @@ export default function NotificationBell() {
 
       {open && (
         <div style={{
-          position: 'absolute', bottom: 0, left: 48, width: 320, maxHeight: 420, overflowY: 'auto',
+          position: 'absolute', bottom: 0, left: '100%', marginLeft: 10, width: 320, maxHeight: 420, overflowY: 'auto',
           background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 12,
           boxShadow: '0 12px 32px rgba(0,0,0,0.2)', zIndex: 50,
         }}>

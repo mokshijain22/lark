@@ -6,6 +6,7 @@ import Modal from '../../shared/components/Modal';
 import Field, { inputStyle } from '../../shared/components/Field';
 import EmptyState from '../../shared/components/EmptyState';
 import ShareButton from '../../shared/components/ShareButton';
+import { Table2 } from 'lucide-react';
 
 const COLS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 const ROWS = Array.from({ length: 15 }, (_, i) => i + 1);
@@ -112,7 +113,7 @@ export default function SheetsPage() {
             </p>
           </div>
         ) : (
-          <EmptyState icon="📊" title="Select a spreadsheet" subtitle="Choose a spreadsheet to edit" />
+          <EmptyState icon={Table2} title="Select a spreadsheet" subtitle="Choose a spreadsheet to edit" />
         )
       }
     >

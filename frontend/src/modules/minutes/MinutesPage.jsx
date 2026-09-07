@@ -5,6 +5,7 @@ import Button from '../../shared/components/Button';
 import Modal from '../../shared/components/Modal';
 import Field, { inputStyle } from '../../shared/components/Field';
 import EmptyState from '../../shared/components/EmptyState';
+import { Calendar, StickyNote } from 'lucide-react';
 
 export default function MinutesPage() {
   const [list, setList] = useState([]);
@@ -54,7 +55,7 @@ export default function MinutesPage() {
           {list.map((m) => (
             <div key={m._id} onClick={() => open(m)} style={{ padding: '12px 16px', cursor: 'pointer', borderBottom: '1px solid var(--color-border)', background: selected?._id === m._id ? 'var(--color-bg)' : 'transparent' }}>
               <div style={{ fontWeight: 600, fontSize: 14 }}>{m.title}</div>
-              {m.linkedEvent && <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 2 }}>📅 {m.linkedEvent.title}</div>}
+              {m.linkedEvent && <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--color-text-muted)', marginTop: 2 }}><Calendar size={12} /> {m.linkedEvent.title}</div>}
             </div>
           ))}
           {list.length === 0 && <div style={{ padding: 20, color: 'var(--color-text-muted)', fontSize: 13 }}>No meeting notes yet.</div>}
@@ -72,7 +73,7 @@ export default function MinutesPage() {
             />
           </div>
         ) : (
-          <EmptyState icon="📝" title="Select meeting notes" subtitle="Choose notes from the list or create new ones" />
+          <EmptyState icon={StickyNote} title="Select meeting notes" subtitle="Choose notes from the list or create new ones" />
         )
       }
     >
