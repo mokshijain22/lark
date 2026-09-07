@@ -3,10 +3,10 @@ import client from '../../shared/api/client';
 import { useAuth } from '../../shared/context/AuthContext';
 import Button from '../../shared/components/Button';
 
-import { Layers, GitBranch, HardDrive, Kanban } from 'lucide-react';
+import { Layers, GitBranch, HardDrive, Kanban, Mail } from 'lucide-react';
 
-const providerLabels = { jira: 'Jira', github: 'GitHub', google_drive: 'Google Drive', trello: 'Trello' };
-const providerIcons = { jira: Layers, github: GitBranch, google_drive: HardDrive, trello: Kanban };
+const providerLabels = { jira: 'Jira', github: 'GitHub', google_drive: 'Google Drive', google: 'Gmail', trello: 'Trello' };
+const providerIcons = { jira: Layers, github: GitBranch, google_drive: HardDrive, google: Mail, trello: Kanban };
 
 export default function IntegrationsPage() {
   const { user } = useAuth();
@@ -20,9 +20,9 @@ export default function IntegrationsPage() {
   useEffect(() => { load(); }, []);
 
   const toggle = async (provider, isConnected) => {
-    if (provider === 'github' && !isConnected) {
-      const token = localStorage.getItem('token'); // adjust key if you store the JWT elsewhere
-      window.location.href = `${client.defaults.baseURL}/integrations/github/connect?token=${token}`;
+    if ((provider === 'github' || provider === 'google') && !isConnected) {
+      const token = localStorage.getItem('nook_token');
+      window.location.href = `${client.defaults.baseURL}/integrations/${provider}/connect?token=${token}`;
       return;
     }
     await client.post(`/integrations/${provider}/${isConnected ? 'disconnect' : 'connect'}`);

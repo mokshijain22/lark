@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken');
 const Integration = require('./integration.model');
 
-const KNOWN_PROVIDERS = ['jira', 'github', 'google_drive', 'trello'];
+const KNOWN_PROVIDERS = ['jira', 'github', 'google_drive', 'google', 'trello'];
 
 // GET /api/integrations  -> list of all providers with connection status
 const getAll = async (req, res) => {
@@ -114,6 +114,77 @@ const githubCallback = async (req, res) => {
   }
 };
 
+// GET /api/integrations/google/connect?token=<jwt>  (redirect flow - browser nav can't send Authorization header)
+const googleConnect = async (req, res) => {
+  try {
+    const { token } = req.query;
+    if (!token) return res.status(401).send('Missing auth token');
+    jwt.verify(token, process.env.JWT_SECRET); // just validating it's a real logged-in user before redirecting
+
+    const state = jwt.sign({ token, provider: 'google' }, process.env.JWT_SECRET, { expiresIn: '10m' });
+    const params = new URLSearchParams({
+      client_id: process.env.GOOGLE_CLIENT_ID,
+      redirect_uri: process.env.GOOGLE_CALLBACK_URL,
+      response_type: 'code',
+      access_type: 'offline',
+      prompt: 'consent',
+      scope: 'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/userinfo.email',
+      state,
+    });
+    return res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`);
+  } catch (err) {
+    return res.status(401).send('Invalid or expired session, please log in again');
+  }
+};
+
+// GET /api/integrations/google/callback  (Google redirects here with ?code=&state=)
+const googleCallback = async (req, res) => {
+  const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+  try {
+    const { code, state } = req.query;
+    const decodedState = jwt.verify(state, process.env.JWT_SECRET);
+    const userPayload = jwt.verify(decodedState.token, process.env.JWT_SECRET);
+
+    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: process.env.GOOGLE_CLIENT_ID,
+        client_secret: process.env.GOOGLE_CLIENT_SECRET,
+        code,
+        redirect_uri: process.env.GOOGLE_CALLBACK_URL,
+        grant_type: 'authorization_code',
+      }),
+    });
+    const tokenData = await tokenRes.json();
+    if (!tokenData.access_token) throw new Error(tokenData.error_description || 'No access token returned');
+
+    const userRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+      headers: { Authorization: `Bearer ${tokenData.access_token}` },
+    });
+    const googleUser = await userRes.json();
+
+    await Integration.findOneAndUpdate(
+      { provider: 'google' },
+      {
+        provider: 'google',
+        isConnected: true,
+        connectedBy: userPayload.id,
+        connectedAt: new Date(),
+        accessToken: tokenData.access_token,
+        refreshToken: tokenData.refresh_token, // only present on first consent, so don't overwrite with undefined on reconnect
+        providerUserId: googleUser.id,
+        providerUsername: googleUser.email,
+      },
+      { upsert: true, new: true }
+    );
+
+    return res.redirect(`${clientUrl}/integrations?connected=google`);
+  } catch (err) {
+    return res.redirect(`${clientUrl}/integrations?error=${encodeURIComponent(err.message)}`);
+  }
+};
+
 // POST /api/integrations/:provider/webhook  (generic inbound webhook -> creates a Notification)
 const { notifyMany } = require('../../shared/services/notify.service');
 const OrgMember = require('../../shared/models/OrgMember');
@@ -137,4 +208,4 @@ const receiveWebhook = async (req, res) => {
   }
 };
 
-module.exports = { getAll, connect, disconnect, receiveWebhook, githubConnect, githubCallback };
+module.exports = { getAll, connect, disconnect, receiveWebhook, githubConnect, githubCallback, googleConnect, googleCallback };

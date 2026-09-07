@@ -7,6 +7,7 @@ const integrationSchema = new mongoose.Schema(
     connectedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'OrgMember', default: null },
     // OAuth/token details would go here once real provider auth is wired up.
     accessToken: { type: String, default: null, select: false },
+    refreshToken: { type: String, default: null, select: false },
     providerUserId: { type: String, default: null },
     providerUsername: { type: String, default: null },
     webhookSecret: { type: String, default: null, select: false },
