@@ -1,0 +1,238 @@
+diff -ruN '--exclude=node_modules' '--exclude=dist' v1_state/backend/modules/integrations/integration.controller.js b/backend/modules/integrations/integration.controller.js
+--- v1_state/backend/modules/integrations/integration.controller.js	2026-09-08 07:56:28.264900018 +0000
++++ b/backend/modules/integrations/integration.controller.js	2026-09-08 07:55:25.359136013 +0000
+@@ -132,7 +132,7 @@
+       response_type: 'code',
+       access_type: 'offline',
+       prompt: 'consent',
+-      scope: 'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/userinfo.email',
++      scope: 'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/userinfo.email',
+       state,
+     });
+     return res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`);
+@@ -256,6 +256,68 @@
+   }
+ };
+ 
++// POST /api/integrations/google/send  (body: { to, subject, body, cc?, bcc? })
++const sendGoogleMessage = async (req, res) => {
++  try {
++    const { to, subject, body, cc, bcc } = req.body;
++    if (!to || !subject || !body) {
++      return res.status(400).json({ success: false, message: 'to, subject, and body are required' });
++    }
++
++    const integration = await Integration.findOne({ provider: 'google', isConnected: true }).select('+accessToken +refreshToken');
++    if (!integration) return res.status(404).json({ success: false, message: 'Gmail not connected' });
++
++    // Build an RFC 2822 message and base64url-encode it - that's the format Gmail's send API expects.
++    const headerLines = [`To: ${to}`, `Subject: ${subject}`, 'Content-Type: text/plain; charset="UTF-8"'];
++    if (cc) headerLines.push(`Cc: ${cc}`);
++    if (bcc) headerLines.push(`Bcc: ${bcc}`);
++    const rawMessage = `${headerLines.join('\r\n')}\r\n\r\n${body}`;
++    const encodedMessage = Buffer.from(rawMessage).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
++
++    const sendGmail = async (accessToken) =>
++      fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
++        method: 'POST',
++        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
++        body: JSON.stringify({ raw: encodedMessage }),
++      });
++
++    let accessToken = integration.accessToken;
++    let sendRes = await sendGmail(accessToken);
++
++    if (sendRes.status === 401 && integration.refreshToken) {
++      const refreshRes = await fetch('https://oauth2.googleapis.com/token', {
++        method: 'POST',
++        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
++        body: new URLSearchParams({
++          client_id: process.env.GOOGLE_CLIENT_ID,
++          client_secret: process.env.GOOGLE_CLIENT_SECRET,
++          refresh_token: integration.refreshToken,
++          grant_type: 'refresh_token',
++        }),
++      });
++      const refreshData = await refreshRes.json();
++      if (!refreshData.access_token) throw new Error('Gmail session expired, please reconnect');
++
++      accessToken = refreshData.access_token;
++      integration.accessToken = accessToken;
++      await integration.save();
++
++      sendRes = await sendGmail(accessToken);
++    }
++
++    if (!sendRes.ok) {
++      const errData = await sendRes.json().catch(() => ({}));
++      // gmail.send scope isn't granted until the user reconnects and re-consents to the wider scope.
++      throw new Error(errData.error?.message || 'Failed to send message - you may need to reconnect Gmail to grant send permission');
++    }
++
++    const sendData = await sendRes.json();
++    return res.status(200).json({ success: true, data: sendData });
++  } catch (err) {
++    return res.status(500).json({ success: false, message: err.message });
++  }
++};
++
+ // GET /api/integrations/google_drive/connect?token=<jwt>  (separate provider entry, drive scope only)
+ const googleDriveConnect = async (req, res) => {
+   try {
+@@ -598,6 +660,7 @@
+   googleConnect,
+   googleCallback,
+   getGoogleMessages,
++  sendGoogleMessage,
+   googleDriveConnect,
+   googleDriveCallback,
+   getDriveFiles,
+diff -ruN '--exclude=node_modules' '--exclude=dist' v1_state/backend/modules/integrations/integration.routes.js b/backend/modules/integrations/integration.routes.js
+--- v1_state/backend/modules/integrations/integration.routes.js	2026-09-08 07:56:28.265252318 +0000
++++ b/backend/modules/integrations/integration.routes.js	2026-09-08 07:55:25.359171567 +0000
+@@ -10,6 +10,7 @@
+   googleConnect,
+   googleCallback,
+   getGoogleMessages,
++  sendGoogleMessage,
+   googleDriveConnect,
+   googleDriveCallback,
+   getDriveFiles,
+@@ -43,6 +44,7 @@
+ router.use(protect);
+ router.get('/', getAll);
+ router.get('/google/messages', getGoogleMessages);
++router.post('/google/send', sendGoogleMessage);
+ router.get('/google_drive/files', getDriveFiles);
+ router.get('/jira/projects', getJiraProjects);
+ router.get('/trello/boards', getTrelloBoards);
+diff -ruN '--exclude=node_modules' '--exclude=dist' v1_state/frontend/src/App.jsx b/frontend/src/App.jsx
+--- v1_state/frontend/src/App.jsx	2026-09-08 07:56:28.265497938 +0000
++++ b/frontend/src/App.jsx	2026-09-08 07:55:25.363080947 +0000
+@@ -19,6 +19,7 @@
+ import WorkplacePage from './modules/workplace/WorkplacePage';
+ import IntegrationsPage from './modules/integrations/IntegrationsPage';
+ import TrelloCallbackPage from './modules/integrations/TrelloCallbackPage';
++import GmailPage from './modules/integrations/GmailPage';
+ import TranslationPage from './modules/translation/TranslationPage';
+ 
+ function Workspace() {
+@@ -44,6 +45,7 @@
+           <Route path="/anycross" element={<AnycrossPage />} />
+           <Route path="/integrations" element={<IntegrationsPage />} />
+           <Route path="/integrations/trello/callback" element={<TrelloCallbackPage />} />
++          <Route path="/integrations/gmail" element={<GmailPage />} />
+           <Route path="/translation" element={<TranslationPage />} />
+           <Route path="*" element={<Navigate to="/workplace" replace />} />
+         </Routes>
+diff -ruN '--exclude=node_modules' '--exclude=dist' v1_state/frontend/src/modules/integrations/GmailPage.jsx b/frontend/src/modules/integrations/GmailPage.jsx
+--- v1_state/frontend/src/modules/integrations/GmailPage.jsx	1970-01-01 00:00:00.000000000 +0000
++++ b/frontend/src/modules/integrations/GmailPage.jsx	2026-09-08 07:55:25.363512733 +0000
+@@ -0,0 +1,86 @@
++import { useEffect, useState } from 'react';
++import client from '../../shared/api/client';
++import PanelLayout from '../../shared/components/PanelLayout';
++import Button from '../../shared/components/Button';
++import Modal from '../../shared/components/Modal';
++import Field, { inputStyle } from '../../shared/components/Field';
++import EmptyState from '../../shared/components/EmptyState';
++import { Mail } from 'lucide-react';
++
++// Real Gmail inbox for the connected Google account (separate from Nook's own
++// internal Mail module, which is contact-based and unrelated to Gmail).
++export default function GmailPage() {
++  const [list, setList] = useState([]);
++  const [loading, setLoading] = useState(true);
++  const [error, setError] = useState(null);
++  const [showForm, setShowForm] = useState(false);
++  const [form, setForm] = useState({ to: '', subject: '', body: '' });
++  const [sending, setSending] = useState(false);
++  const [sendError, setSendError] = useState(null);
++
++  const load = async () => {
++    setLoading(true);
++    setError(null);
++    try {
++      const res = await client.get('/integrations/google/messages');
++      setList(res.data.data);
++    } catch (err) {
++      setError(err.response?.data?.message || 'Failed to load Gmail messages');
++    } finally {
++      setLoading(false);
++    }
++  };
++  useEffect(() => { load(); }, []);
++
++  const submit = async (e) => {
++    e.preventDefault();
++    setSending(true);
++    setSendError(null);
++    try {
++      await client.post('/integrations/google/send', form);
++      setShowForm(false);
++      setForm({ to: '', subject: '', body: '' });
++      load();
++    } catch (err) {
++      setSendError(err.response?.data?.message || 'Failed to send message');
++    } finally {
++      setSending(false);
++    }
++  };
++
++  return (
++    <PanelLayout
++      title="Gmail"
++      headerActions={<Button onClick={() => setShowForm(true)} style={{ padding: '6px 12px', fontSize: 13 }}>+ Compose</Button>}
++      listContent={
++        <div>
++          {loading && <div style={{ padding: 20, color: 'var(--color-text-muted)', fontSize: 13 }}>Loading...</div>}
++          {error && <div style={{ padding: 20, color: 'var(--color-danger, #d33)', fontSize: 13 }}>{error}</div>}
++          {!loading && !error && list.map((m) => (
++            <div key={m.id} style={{ padding: '12px 16px', borderBottom: '1px solid var(--color-border)' }}>
++              <div style={{ fontWeight: m.isUnread ? 700 : 500, fontSize: 14 }}>{m.subject}</div>
++              <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 2 }}>{m.from}</div>
++              <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 4 }}>{m.snippet}</div>
++            </div>
++          ))}
++          {!loading && !error && list.length === 0 && (
++            <div style={{ padding: 20, color: 'var(--color-text-muted)', fontSize: 13 }}>Nothing in the inbox.</div>
++          )}
++        </div>
++      }
++      detailContent={<EmptyState icon={Mail} title="Gmail" subtitle="Select a message from the list, or compose a new one" />}
++    >
++      {showForm && (
++        <Modal title="Compose Gmail" onClose={() => setShowForm(false)} width={480}>
++          <form onSubmit={submit}>
++            <Field label="To"><input style={inputStyle} type="email" required value={form.to} onChange={(e) => setForm({ ...form, to: e.target.value })} /></Field>
++            <Field label="Subject"><input style={inputStyle} required value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} /></Field>
++            <Field label="Message"><textarea style={{ ...inputStyle, minHeight: 120 }} required value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} /></Field>
++            {sendError && <div style={{ color: 'var(--color-danger, #d33)', fontSize: 12, marginBottom: 12 }}>{sendError}</div>}
++            <Button type="submit" disabled={sending} style={{ width: '100%' }}>{sending ? 'Sending...' : 'Send'}</Button>
++          </form>
++        </Modal>
++      )}
++    </PanelLayout>
++  );
++}
+diff -ruN '--exclude=node_modules' '--exclude=dist' v1_state/frontend/src/modules/integrations/IntegrationsPage.jsx b/frontend/src/modules/integrations/IntegrationsPage.jsx
+--- v1_state/frontend/src/modules/integrations/IntegrationsPage.jsx	2026-09-08 07:56:28.265640865 +0000
++++ b/frontend/src/modules/integrations/IntegrationsPage.jsx	2026-09-08 07:55:25.363539500 +0000
+@@ -1,4 +1,5 @@
+ import { useEffect, useState } from 'react';
++import { Link } from 'react-router-dom';
+ import client from '../../shared/api/client';
+ import { useAuth } from '../../shared/context/AuthContext';
+ import Button from '../../shared/components/Button';
+@@ -46,6 +47,11 @@
+               <div style={{ fontWeight: 600, fontSize: 14 }}>{providerLabels[i.provider]}</div>
+               <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>{i.isConnected ? `Connected ${i.connectedAt ? new Date(i.connectedAt).toLocaleDateString() : ''}` : 'Not connected'}</div>
+             </div>
++            {i.provider === 'google' && i.isConnected && (
++              <Link to="/integrations/gmail">
++                <Button variant="secondary" style={{ fontSize: 12, padding: '6px 14px' }}>View Inbox</Button>
++              </Link>
++            )}
+             {isPrivileged && (
+               <Button variant={i.isConnected ? 'danger' : 'primary'} onClick={() => toggle(i.provider, i.isConnected)} style={{ fontSize: 12, padding: '6px 14px' }}>
+                 {i.isConnected ? 'Disconnect' : 'Connect'}

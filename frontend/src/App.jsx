@@ -18,6 +18,8 @@ import MagicSharePage from './modules/magicshare/MagicSharePage';
 import AnycrossPage from './modules/anycross/AnycrossPage';
 import WorkplacePage from './modules/workplace/WorkplacePage';
 import IntegrationsPage from './modules/integrations/IntegrationsPage';
+import TrelloCallbackPage from './modules/integrations/TrelloCallbackPage';
+import GmailPage from './modules/integrations/GmailPage';
 import TranslationPage from './modules/translation/TranslationPage';
 
 function Workspace() {
@@ -42,6 +44,8 @@ function Workspace() {
           <Route path="/share" element={<MagicSharePage />} />
           <Route path="/anycross" element={<AnycrossPage />} />
           <Route path="/integrations" element={<IntegrationsPage />} />
+          <Route path="/integrations/trello/callback" element={<TrelloCallbackPage />} />
+          <Route path="/integrations/gmail" element={<GmailPage />} />
           <Route path="/translation" element={<TranslationPage />} />
           <Route path="*" element={<Navigate to="/workplace" replace />} />
         </Routes>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import client from '../../shared/api/client';
 import { useAuth } from '../../shared/context/AuthContext';
 import Button from '../../shared/components/Button';
@@ -19,8 +20,10 @@ export default function IntegrationsPage() {
   };
   useEffect(() => { load(); }, []);
 
+  const OAUTH_PROVIDERS = ['github', 'google', 'google_drive', 'jira', 'trello'];
+
   const toggle = async (provider, isConnected) => {
-    if ((provider === 'github' || provider === 'google') && !isConnected) {
+    if (OAUTH_PROVIDERS.includes(provider) && !isConnected) {
       const token = localStorage.getItem('nook_token');
       window.location.href = `${client.defaults.baseURL}/integrations/${provider}/connect?token=${token}`;
       return;
@@ -33,7 +36,7 @@ export default function IntegrationsPage() {
     <div style={{ flex: 1, padding: 32, overflowY: 'auto' }}>
       <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Integrations</h2>
       <p style={{ fontSize: 13, color: 'var(--color-text-muted)', marginBottom: 24 }}>
-        Connect external tools so their activity shows up in Nook. Real OAuth flows need each provider's API credentials wired in later — this manages connection status and inbound webhooks.
+        Connect external tools so their activity shows up in Nook. Each provider needs its own API credentials set in the backend's <code>.env</code> before "Connect" will work — see the README.
       </p>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -44,6 +47,11 @@ export default function IntegrationsPage() {
               <div style={{ fontWeight: 600, fontSize: 14 }}>{providerLabels[i.provider]}</div>
               <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>{i.isConnected ? `Connected ${i.connectedAt ? new Date(i.connectedAt).toLocaleDateString() : ''}` : 'Not connected'}</div>
             </div>
+            {i.provider === 'google' && i.isConnected && (
+              <Link to="/integrations/gmail">
+                <Button variant="secondary" style={{ fontSize: 12, padding: '6px 14px' }}>View Inbox</Button>
+              </Link>
+            )}
             {isPrivileged && (
               <Button variant={i.isConnected ? 'danger' : 'primary'} onClick={() => toggle(i.provider, i.isConnected)} style={{ fontSize: 12, padding: '6px 14px' }}>
                 {i.isConnected ? 'Disconnect' : 'Connect'}
